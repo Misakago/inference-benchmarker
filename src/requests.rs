@@ -184,6 +184,11 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
                             }
                         };
                     let choices = oai_response.choices;
+                    // Check if choices array is empty
+                    if choices.is_empty() {
+                        trace!("Received empty choices array, skipping");
+                        continue;
+                    }
                     let content = choices[0]
                         .clone()
                         .delta
