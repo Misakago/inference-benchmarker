@@ -165,6 +165,9 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
             match event {
                 Ok(Event::Open) => trace!("SSE connection opened"),
                 Ok(Event::Message(message)) => {
+                    // Log all SSE events for debugging
+                    trace!("Received SSE event: {}", message.data);
+
                     if message.data == "\n" || message.data == "[DONE]" {
                         aggregated_response.stop();
                         continue;
@@ -175,6 +178,13 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
                         es.close();
                         break;
                     }
+
+                    // Skip empty or whitespace-only messages
+                    if message.data.trim().is_empty() {
+                        trace!("Skipping empty SSE message");
+                        continue;
+                    }
+
                     // deserialize message data
                     let oai_response: OpenAITextGenerationResponse =
                         match serde_json::from_str(&message.data) {
