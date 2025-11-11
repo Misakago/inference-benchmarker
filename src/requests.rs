@@ -137,10 +137,13 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
             role: "user".to_string(),
             content: request.prompt.clone(),
         }];
+        // Use a default of 512 tokens if num_decode_tokens is not specified
+        // Some API implementations require max_tokens to be set
+        let max_tokens = request.num_decode_tokens.or(Some(512));
         let body = OpenAITextGenerationRequest {
             model: self.model_name.clone(),
             messages,
-            max_tokens: request.num_decode_tokens,
+            max_tokens,
             stream: true,
             stop: None,
             temperature: 0.0,
@@ -178,6 +181,7 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
                             Ok(response) => response,
                             Err(e) => {
                                 error!("Error deserializing OpenAI API response: {e}", e = e);
+                                error!("Raw response data: {data}", data = message.data);
                                 aggregated_response.fail();
                                 es.close();
                                 break;
@@ -186,7 +190,8 @@ impl TextGenerationBackend for OpenAITextGenerationBackend {
                     let choices = oai_response.choices;
                     // Check if choices array is empty
                     if choices.is_empty() {
-                        trace!("Received empty choices array, skipping");
+                        warn!("Received empty choices array from server. Raw response: {data}", data = message.data);
+                        warn!("This usually indicates a server-side issue or incompatibility. Check your API endpoint and model configuration.");
                         continue;
                     }
                     let content = choices[0]
